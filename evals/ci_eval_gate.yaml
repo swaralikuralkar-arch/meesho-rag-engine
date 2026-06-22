@@ -1,0 +1,116 @@
+name: RAG Eval Gate
+
+on:
+  push:
+    branches: [main, staging]
+    paths:
+      - 'core/**'
+      - 'ingestion/**'
+      - 'evals/**'
+      - 'config/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'ingestion/**'
+      - 'evals/**'
+      - 'config/**'
+
+# Only one eval run at a time per branch
+concurrency:
+  group: eval-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval-gate:
+    name: Faithfulness Gate (≥85%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            pdfplumber beautifulsoup4 markdownify tiktoken \
+            qdrant-client rank-bm25 sentence-transformers \
+            pydantic openai tenacity \
+            langsmith ragas==0.1.21 datasets python-dotenv \
+            langchain-community langchain-openai
+
+      - name: Run eval suite (fast mode — 3 triplets for PR)
+        if: github.event_name == 'pull_request'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          LANGCHAIN_TRACING_V2: "true"
+          LANGCHAIN_PROJECT: "meesho-rag-engine-ci"
+        run: |
+          python evals/run_evals.py \
+            --fast \
+            --threshold 0.85 \
+            --output evals/reports/ci_eval_pr.json
+
+      - name: Run eval suite (full — on push to main/staging)
+        if: github.event_name == 'push'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          LANGCHAIN_TRACING_V2: "true"
+          LANGCHAIN_PROJECT: "meesho-rag-engine-ci"
+        run: |
+          python evals/run_evals.py \
+            --threshold 0.85 \
+            --output evals/reports/ci_eval_${{ github.sha }}.json
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.sha }}
+          path: evals/reports/
+          retention-days: 30
+
+      - name: Comment PR with eval results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'evals/reports/ci_eval_pr.json';
+            if (!fs.existsSync(reportPath)) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '⚠️ Eval report not found — eval run may have failed.'
+              });
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const status = report.passed_gate ? '✅ PASSED' : '❌ FAILED';
+            const body = `## RAG Eval Gate ${status}
+            | Metric | Score | Threshold |
+            |--------|-------|-----------|
+            | Faithfulness | ${report.avg_faithfulness?.toFixed(3) ?? 'N/A'} | 0.850 |
+            | Context Recall | ${report.avg_context_recall?.toFixed(3) ?? 'N/A'} | — |
+            | Context Precision | ${report.avg_context_precision?.toFixed(3) ?? 'N/A'} | — |
+            | Decline Rate | ${(report.decline_rate * 100)?.toFixed(1) ?? 'N/A'}% | — |
+            | Triplets Scored | ${report.scored_triplets} / ${report.total_triplets} | — |
+            ${report.passed_gate ? '✅ Safe to merge.' : '🚫 **Deployment blocked.** Faithfulness below threshold — fix retrieval or prompt before merging.'}
+            `;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
