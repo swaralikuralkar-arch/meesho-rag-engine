@@ -1,0 +1,54 @@
+﻿name: RAG Eval Gate
+
+on:
+  push:
+    branches: [main, staging]
+    paths:
+      - 'core/**'
+      - 'ingestion/**'
+      - 'evals/**'
+      - 'config/**'
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: eval-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval-gate:
+    name: Faithfulness Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pdfplumber beautifulsoup4 markdownify tiktoken qdrant-client rank-bm25 sentence-transformers pydantic openai tenacity langsmith ragas==0.1.21 datasets python-dotenv langchain-community langchain-openai
+
+      - name: Run eval suite
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          LANGCHAIN_TRACING_V2: "true"
+          LANGCHAIN_PROJECT: "meesho-rag-engine-ci"
+        run: |
+          python evals/run_evals.py --fast --threshold 0.85
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.sha }}
+          path: evals/reports/
+          retention-days: 30
