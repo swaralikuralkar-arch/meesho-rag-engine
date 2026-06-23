@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meesho Supplier Intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:        #0f0f11;
+    --surface:   #1a1a1f;
+    --surface2:  #22222a;
+    --border:    #2e2e38;
+    --accent:    #f6534a;
+    --accent2:   #ff8c42;
+    --text:      #e8e8ed;
+    --text2:     #8888a0;
+    --text3:     #55556a;
+    --green:     #3ecf8e;
+    --blue:      #5b8dee;
+    --yellow:    #f6c344;
+    --radius:    12px;
+    --font:      'Inter', system-ui, sans-serif;
+    --mono:      'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.2px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Main layout ─────────────────────────── */
+  main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Chat area ───────────────────────────── */
+  .chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    scroll-behavior: smooth;
+  }
+
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Empty state ─────────────────────────── */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .empty-icon {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+
+  .empty-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    color: var(--text);
+  }
+
+  .empty-sub {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.6;
+    max-width: 400px;
+  }
+
+  .suggestions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .suggestion {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.4;
+  }
+
+  .suggestion:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    background: var(--surface2);
+  }
+
+  .suggestion strong {
+    display: block;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+  }
+
+  /* ── Messages ────────────────────────────── */
+  .message {
+    display: flex;
+    gap: 12px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .avatar.user-av {
+    background: linear-gradient(135deg, var(--blue), #7c5cfc);
+    color: white;
+  }
+
+  .avatar.ai-av {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+  }
+
+  .bubble {
+    max-width: 72%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .message.user .bubble { align-items: flex-end; }
+
+  .bubble-text {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .message.user .bubble-text {
+    background: var(--surface2);
+    border-color: var(--border);
+  }
+
+  /* ── Metric badge ────────────────────────── */
+  .metric-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(246, 83, 74, 0.1);
+    border: 1px solid rgba(246, 83, 74, 0.3);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--accent2);
+    align-self: flex-start;
+  }
+
+  /* ── Citations ───────────────────────────── */
+  .citations {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .citations-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text3);
+  }
+
+  .citation {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .citation:hover { border-left-color: var(--accent2); }
+
+  .citation-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+  }
+
+  .doc-tag {
+    background: rgba(91, 141, 238, 0.12);
+    color: var(--blue);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--mono);
+  }
+
+  .type-tag {
+    background: var(--surface);
+    color: var(--text2);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+  }
+
+  .section-tag {
+    color: var(--text2);
+    font-size: 11px;
+  }
+
+  .quote {
+    color: var(--text2);
+    font-style: italic;
+    line-height: 1.5;
+    border-left: none;
+  }
+
+  /* ── Decline message ─────────────────────── */
+  .decline-box {
+    background: rgba(246, 195, 68, 0.06);
+    border: 1px solid rgba(246, 195, 68, 0.2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--yellow);
+    line-height: 1.6;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  /* ── Confidence bar ──────────────────────── */
+  .confidence {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .conf-bar {
+    width: 60px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .conf-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* ── Thinking indicator ──────────────────── */
+  .thinking {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    animation: bounce 1.2s infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+    40% { transform: scale(1.2); opacity: 1; }
+  }
+
+  /* ── Input area ──────────────────────────── */
+  .input-area {
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .input-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 14px;
+    transition: border-color 0.15s;
+  }
+
+  .input-wrap:focus-within { border-color: var(--accent); }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    max-height: 120px;
+    min-height: 24px;
+  }
+
+  textarea::placeholder { color: var(--text3); }
+
+  .send-btn {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s, transform 0.1s;
+    color: white;
+  }
+
+  .send-btn:hover { opacity: 0.9; transform: scale(1.05); }
+  .send-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+  .input-hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 8px;
+    padding: 0 4px;
+  }
+
+  /* ── Sidebar ─────────────────────────────── */
+  .sidebar {
+    width: 260px;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    gap: 20px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .sidebar-section h3 {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .doc-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 2px;
+    cursor: default;
+  }
+
+  .doc-item:hover { background: var(--surface2); color: var(--text); }
+
+  .doc-icon {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .doc-icon.pdf { background: rgba(246, 83, 74, 0.15); color: var(--accent); }
+  .doc-icon.html { background: rgba(91, 141, 238, 0.15); color: var(--blue); }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: var(--text2); }
+  .stat-val { font-family: var(--mono); color: var(--text); font-weight: 500; }
+  .stat-val.green { color: var(--green); }
+  .stat-val.yellow { color: var(--yellow); }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .suggestions { grid-template-columns: 1fr; }
+    .bubble { max-width: 90%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧠</div>
+    Meesho Supplier Intelligence
+  </div>
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    Demo mode
+  </div>
+</header>
+
+<main>
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">📦</div>
+        <div>
+          <div class="empty-title">Ask about supplier policies</div>
+          <div class="empty-sub" style="margin-top:8px">Get instant, cited answers from Meesho's supplier documentation — commission rates, return policies, payment schedules, and more.</div>
+        </div>
+        <div class="suggestions">
+          <div class="suggestion" onclick="ask('What is the commission rate for fashion category?')">
+            <strong>Commission</strong>
+            What is the commission rate for fashion category?
+          </div>
+          <div class="suggestion" onclick="ask('How many days to accept a return request?')">
+            <strong>Returns</strong>
+            How many days to accept a return request?
+          </div>
+          <div class="suggestion" onclick="ask('What is the payment settlement cycle?')">
+            <strong>Payments</strong>
+            What is the payment settlement cycle?
+          </div>
+          <div class="suggestion" onclick="ask('What are the shipping charges by weight?')">
+            <strong>Shipping</strong>
+            What are the shipping charges by weight?
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea
+          id="input"
+          placeholder="Ask about commissions, returns, payments, cataloging..."
+          rows="1"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this)"
+        ></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendQuery()" title="Send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">Press Enter to send · Shift+Enter for new line</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <h3>Knowledge Base</h3>
+      <div class="doc-item">
+        <div class="doc-icon pdf">PDF</div>
+        supplier_onboarding_v3
+      </div>
+      <div class="doc-item">
+        <div class="doc-icon pdf">PDF</div>
+        return_rto_policy_v5
+      </div>
+      <div class="doc-item">
+        <div class="doc-icon html">HTM</div>
+        cataloging_guidelines
+      </div>
+      <div class="doc-item">
+        <div class="doc-icon pdf">PDF</div>
+        payment_settlement_v2
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Session Stats</h3>
+      <div class="stat-row">
+        <span class="stat-label">Queries</span>
+        <span class="stat-val" id="statQueries">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Answered</span>
+        <span class="stat-val green" id="statAnswered">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Declined</span>
+        <span class="stat-val yellow" id="statDeclined">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Avg latency</span>
+        <span class="stat-val" id="statLatency">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Avg confidence</span>
+        <span class="stat-val green" id="statConf">—</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Pipeline</h3>
+      <div class="stat-row">
+        <span class="stat-label">Retrieval</span>
+        <span class="stat-val green">Qdrant + BM25</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Reranker</span>
+        <span class="stat-val green">Cross-encoder</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">LLM</span>
+        <span class="stat-val green">gpt-4o-mini</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Tracing</span>
+        <span class="stat-val green">LangSmith</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let stats = { queries: 0, answered: 0, declined: 0, latencies: [], confs: [] };
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendQuery();
+    }
+  }
+
+  function ask(text) {
+    document.getElementById('input').value = text;
+    sendQuery();
+  }
+
+  function hideEmpty() {
+    const el = document.getElementById('emptyState');
+    if (el) el.remove();
+  }
+
+  function addMessage(role, content) {
+    hideEmpty();
+    const container = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+
+    const initials = role === 'user' ? 'S' : 'M';
+    const avClass  = role === 'user' ? 'user-av' : 'ai-av';
+
+    div.innerHTML = `
+      <div class="avatar ${avClass}">${initials}</div>
+      <div class="bubble" id="bubble-${Date.now()}">
+        ${content}
+      </div>`;
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  function thinkingBubble() {
+    hideEmpty();
+    const container = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.id = 'thinking';
+    div.innerHTML = `
+      <div class="avatar ai-av">M</div>
+      <div class="bubble">
+        <div class="thinking">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+      </div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function removeThinking() {
+    const el = document.getElementById('thinking');
+    if (el) el.remove();
+  }
+
+  function renderResponse(data) {
+    if (data.is_decline) {
+      return `<div class="decline-box">⚠️ ${data.answer}</div>`;
+    }
+
+    let html = `<div class="bubble-text">${data.answer}</div>`;
+
+    if (data.metric_value) {
+      html += `<div class="metric-badge">📊 ${data.metric_value}${data.metric_unit && data.metric_unit !== data.metric_value ? ' ' + data.metric_unit : ''}</div>`;
+    }
+
+    if (data.citations && data.citations.length > 0) {
+      html += `<div class="citations">
+        <div class="citations-label">Sources (${data.citations.length})</div>`;
+      data.citations.forEach(c => {
+        html += `
+        <div class="citation">
+          <div class="citation-meta">
+            <span class="doc-tag">${c.doc_id.replace(/_/g,' ')}</span>
+            <span class="type-tag">${c.content_type}</span>
+            ${c.section_header ? `<span class="section-tag">§ ${c.section_header}</span>` : ''}
+          </div>
+          <div class="quote">"${c.exact_quote_context}"</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    const confPct = Math.round(data.confidence * 100);
+    html += `<div class="confidence">
+      <div class="conf-bar"><div class="conf-fill" style="width:${confPct}%"></div></div>
+      ${confPct}% confidence · ${data.latency_ms.toFixed(0)}ms
+    </div>`;
+
+    return html;
+  }
+
+  function updateStats(data) {
+    stats.queries++;
+    if (data.is_decline) stats.declined++;
+    else stats.answered++;
+    stats.latencies.push(data.latency_ms);
+    if (!data.is_decline) stats.confs.push(data.confidence);
+
+    document.getElementById('statQueries').textContent = stats.queries;
+    document.getElementById('statAnswered').textContent = stats.answered;
+    document.getElementById('statDeclined').textContent = stats.declined;
+
+    const avgLat = stats.latencies.reduce((a,b) => a+b, 0) / stats.latencies.length;
+    document.getElementById('statLatency').textContent = avgLat.toFixed(0) + 'ms';
+
+    if (stats.confs.length > 0) {
+      const avgConf = stats.confs.reduce((a,b) => a+b, 0) / stats.confs.length;
+      document.getElementById('statConf').textContent = (avgConf * 100).toFixed(0) + '%';
+    }
+  }
+
+  async function sendQuery() {
+    const input = document.getElementById('input');
+    const btn = document.getElementById('sendBtn');
+    const query = input.value.trim();
+    if (!query) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    btn.disabled = true;
+
+    addMessage('user', `<div class="bubble-text">${query}</div>`);
+    thinkingBubble();
+
+    try {
+      const res = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+
+      removeThinking();
+      addMessage('assistant', renderResponse(data));
+      updateStats(data);
+    } catch (err) {
+      removeThinking();
+      addMessage('assistant', `<div class="decline-box">⚠️ Unable to reach the server. Make sure the API is running.</div>`);
+    }
+
+    btn.disabled = false;
+    input.focus();
+  }
+</script>
+</body>
+</html>

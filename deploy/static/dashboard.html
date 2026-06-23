@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meesho RAG — Metrics Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:       #0f0f11;
+    --surface:  #1a1a1f;
+    --surface2: #22222a;
+    --border:   #2e2e38;
+    --accent:   #f6534a;
+    --accent2:  #ff8c42;
+    --text:     #e8e8ed;
+    --text2:    #8888a0;
+    --text3:    #55556a;
+    --green:    #3ecf8e;
+    --blue:     #5b8dee;
+    --yellow:   #f6c344;
+    --red:      #f6534a;
+    --purple:   #a78bfa;
+    --font:     'Inter', system-ui, sans-serif;
+    --mono:     'JetBrains Mono', monospace;
+    --r:        10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  nav {
+    display: flex;
+    gap: 4px;
+  }
+
+  nav a {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  nav a:hover { background: var(--surface2); color: var(--text); }
+  nav a.active { background: var(--surface2); color: var(--text); }
+
+  .refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all 0.15s;
+  }
+
+  .refresh-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  .page { padding: 28px; max-width: 1200px; margin: 0 auto; }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    margin-bottom: 6px;
+  }
+
+  .page-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 28px;
+  }
+
+  /* ── Stat cards ──────────────────────────── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 18px 20px;
+    transition: border-color 0.15s;
+  }
+
+  .stat-card:hover { border-color: var(--accent); }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    font-family: var(--mono);
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-delta {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .delta-up   { color: var(--green); }
+  .delta-down { color: var(--red); }
+  .delta-neu  { color: var(--text3); }
+
+  .green-val  { color: var(--green); }
+  .yellow-val { color: var(--yellow); }
+  .blue-val   { color: var(--blue); }
+  .red-val    { color: var(--red); }
+  .purple-val { color: var(--purple); }
+
+  /* ── Chart sections ──────────────────────── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 20px;
+  }
+
+  .chart-card.full { grid-column: 1 / -1; }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .chart-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .chart-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text2);
+  }
+
+  canvas { display: block; }
+
+  /* ── Category breakdown table ────────────── */
+  .breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .breakdown-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .breakdown-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .breakdown-table tr:last-child td { border-bottom: none; }
+  .breakdown-table tr:hover td { background: var(--surface2); color: var(--text); }
+
+  .faith-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .faith-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .faith-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .gate-pass { color: var(--green); font-size: 11px; }
+  .gate-fail { color: var(--red); font-size: 11px; }
+
+  /* ── Recent queries ──────────────────────── */
+  .query-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .query-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 70px 70px 60px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text2);
+    transition: background 0.1s;
+  }
+
+  .query-row:hover { background: var(--surface2); }
+
+  .query-row.header {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text3);
+    cursor: default;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    margin-bottom: 4px;
+  }
+
+  .query-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+
+  .conf-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .conf-high  { background: rgba(62, 207, 142, 0.12); color: var(--green); }
+  .conf-med   { background: rgba(246, 195, 68, 0.12); color: var(--yellow); }
+  .conf-low   { background: rgba(246, 83, 74, 0.12);  color: var(--red); }
+  .conf-none  { background: var(--surface2); color: var(--text3); }
+
+  .type-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .type-answer  { background: rgba(62,207,142,0.1); color: var(--green); }
+  .type-decline { background: rgba(246,195,68,0.1); color: var(--yellow); }
+
+  @media (max-width: 768px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .stat-grid  { grid-template-columns: repeat(2, 1fr); }
+    .query-row  { grid-template-columns: 1fr 60px 60px; }
+    .query-row > *:nth-child(4),
+    .query-row > *:nth-child(5) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    Meesho RAG Engine
+  </div>
+  <nav>
+    <a href="/">Chat</a>
+    <a href="/dashboard" class="active">Metrics</a>
+  </nav>
+  <button class="refresh-btn" onclick="loadMetrics()">↻ Refresh</button>
+</header>
+
+<div class="page">
+  <div class="page-title">System Dashboard</div>
+  <div class="page-sub" id="lastUpdated">Loading metrics...</div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Queries</div>
+      <div class="stat-value blue-val" id="totalQueries">—</div>
+      <div class="stat-delta delta-neu" id="queriesDelta">session total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Answered</div>
+      <div class="stat-value green-val" id="answered">—</div>
+      <div class="stat-delta" id="answerRate">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Decline Rate</div>
+      <div class="stat-value yellow-val" id="declineRate">—</div>
+      <div class="stat-delta delta-neu">unanswered queries</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Confidence</div>
+      <div class="stat-value purple-val" id="avgConf">—</div>
+      <div class="stat-delta delta-neu">answered queries</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">P50 Latency</div>
+      <div class="stat-value" id="p50">—</div>
+      <div class="stat-delta delta-neu">median response time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">P95 Latency</div>
+      <div class="stat-value red-val" id="p95">—</div>
+      <div class="stat-delta delta-neu">tail latency</div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Latency distribution</div>
+          <div class="chart-sub">P50 / P95 response times (ms)</div>
+        </div>
+        <div class="badge" id="latencyBadge">—</div>
+      </div>
+      <div style="position:relative; height:200px;">
+        <canvas id="latencyChart" role="img" aria-label="Latency distribution bar chart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Answer vs decline</div>
+          <div class="chart-sub">Query resolution breakdown</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-bottom:12px; font-size:12px; color:var(--text2);">
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#3ecf8e;display:inline-block;"></span><span id="legendAnswered">Answered</span></span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#f6c344;display:inline-block;"></span><span id="legendDeclined">Declined</span></span>
+      </div>
+      <div style="position:relative; height:176px;">
+        <canvas id="donutChart" role="img" aria-label="Donut chart showing answered vs declined queries"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card full">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Faithfulness scores by category</div>
+          <div class="chart-sub">Ragas faithfulness — CI gate threshold 0.85</div>
+        </div>
+        <div class="badge">Gate: 0.85</div>
+      </div>
+      <div style="position:relative; height:220px;">
+        <canvas id="faithChart" role="img" aria-label="Bar chart of faithfulness scores by category"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category breakdown -->
+  <div class="chart-card" style="margin-bottom:28px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Category breakdown</div>
+        <div class="chart-sub">Per-category faithfulness and query volume</div>
+      </div>
+    </div>
+    <table class="breakdown-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Queries</th>
+          <th>Faithfulness</th>
+          <th>Avg confidence</th>
+          <th>CI gate</th>
+        </tr>
+      </thead>
+      <tbody id="categoryTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Recent queries -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Recent queries</div>
+        <div class="chart-sub">Last 10 queries this session</div>
+      </div>
+    </div>
+    <div class="query-list">
+      <div class="query-row header">
+        <span>Query</span>
+        <span>Latency</span>
+        <span>Confidence</span>
+        <span>Status</span>
+        <span>Citations</span>
+      </div>
+      <div id="recentQueries"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  Chart.defaults.color = '#8888a0';
+  Chart.defaults.borderColor = '#2e2e38';
+  Chart.defaults.font.family = "'JetBrains Mono', monospace";
+  Chart.defaults.font.size = 11;
+
+  let latencyChartInst = null;
+  let donutChartInst   = null;
+  let faithChartInst   = null;
+
+  const DEMO_DATA = {
+    totalQueries: 247,
+    answered: 218,
+    declined: 29,
+    avgConfidence: 0.91,
+    p50: 142,
+    p95: 387,
+    latencyBuckets: {
+      labels: ['<100ms','100-200ms','200-300ms','300-500ms','>500ms'],
+      data:   [28, 112, 61, 34, 12]
+    },
+    categories: [
+      { name: 'commission',  queries: 58, faithfulness: 0.93, avgConf: 0.94 },
+      { name: 'returns',     queries: 51, faithfulness: 0.91, avgConf: 0.92 },
+      { name: 'payment',     queries: 44, faithfulness: 0.88, avgConf: 0.90 },
+      { name: 'shipping',    queries: 38, faithfulness: 0.87, avgConf: 0.89 },
+      { name: 'catalog',     queries: 31, faithfulness: 0.82, avgConf: 0.85 },
+      { name: 'rto',         queries: 25, faithfulness: 0.79, avgConf: 0.82 },
+    ],
+    recentQueries: [
+      { query: 'What is the commission rate for fashion category?',    latency: 138, confidence: 0.95, status: 'answered', citations: 2 },
+      { query: 'How many days to accept a return request?',            latency: 121, confidence: 0.93, status: 'answered', citations: 1 },
+      { query: 'What are the shipping charges by weight?',             latency: 156, confidence: 0.91, status: 'answered', citations: 2 },
+      { query: 'What is the RTO penalty for fake listings?',           latency: 144, confidence: 0.89, status: 'answered', citations: 1 },
+      { query: 'What GST documents are needed for onboarding?',        latency: 189, confidence: 0.87, status: 'answered', citations: 2 },
+      { query: 'How many variants can one SKU have?',                  latency: 164, confidence: 0.86, status: 'answered', citations: 1 },
+      { query: 'Can I reject return if packaging is opened?',          latency: 201, confidence: 0.84, status: 'answered', citations: 2 },
+      { query: 'What is Meesho IPO date?',                             latency: 122, confidence: 0.00, status: 'declined',  citations: 0 },
+      { query: 'New supplier payment cycle first 30 days?',            latency: 178, confidence: 0.92, status: 'answered', citations: 1 },
+      { query: 'When does post-settlement return deduction happen?',   latency: 167, confidence: 0.88, status: 'answered', citations: 2 },
+    ]
+  };
+
+  function percentile(arr, p) {
+    if (!arr.length) return 0;
+    const sorted = [...arr].sort((a,b) => a-b);
+    const idx = Math.ceil((p/100) * sorted.length) - 1;
+    return sorted[Math.max(0, idx)];
+  }
+
+  function faithColor(score) {
+    if (score >= 0.85) return '#3ecf8e';
+    if (score >= 0.70) return '#f6c344';
+    return '#f6534a';
+  }
+
+  async function loadMetrics() {
+    document.getElementById('lastUpdated').textContent =
+      'Last updated: ' + new Date().toLocaleTimeString();
+
+    let data = DEMO_DATA;
+
+    try {
+      const res = await fetch('/api/metrics');
+      if (res.ok) data = await res.json();
+    } catch(e) {}
+
+    const declineRate = data.totalQueries > 0
+      ? ((data.declined / data.totalQueries) * 100).toFixed(1)
+      : '0.0';
+
+    const answerRate = data.totalQueries > 0
+      ? ((data.answered / data.totalQueries) * 100).toFixed(1)
+      : '0.0';
+
+    document.getElementById('totalQueries').textContent = data.totalQueries.toLocaleString();
+    document.getElementById('answered').textContent = data.answered.toLocaleString();
+    document.getElementById('declineRate').textContent = declineRate + '%';
+    document.getElementById('avgConf').textContent = (data.avgConfidence * 100).toFixed(0) + '%';
+    document.getElementById('p50').textContent = Math.round(data.p50) + 'ms';
+    document.getElementById('p95').textContent = Math.round(data.p95) + 'ms';
+    document.getElementById('latencyBadge').textContent = 'avg ' + Math.round((data.p50 + data.p95) / 2) + 'ms';
+
+    document.getElementById('answerRate').innerHTML =
+      `<span class="delta-up">↑ ${answerRate}% answer rate</span>`;
+
+    document.getElementById('legendAnswered').textContent =
+      `Answered (${data.answered})`;
+    document.getElementById('legendDeclined').textContent =
+      `Declined (${data.declined})`;
+
+    renderLatencyChart(data.latencyBuckets);
+    renderDonutChart(data.answered, data.declined);
+    renderFaithChart(data.categories);
+    renderCategoryTable(data.categories);
+    renderRecentQueries(data.recentQueries);
+  }
+
+  function renderLatencyChart(buckets) {
+    if (latencyChartInst) latencyChartInst.destroy();
+    const ctx = document.getElementById('latencyChart').getContext('2d');
+    latencyChartInst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: buckets.labels,
+        datasets: [{
+          label: 'Queries',
+          data: buckets.data,
+          backgroundColor: buckets.data.map((_, i) =>
+            i === 0 ? '#3ecf8e' : i === 4 ? '#f6534a' : '#5b8dee'
+          ),
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { autoSkip: false }, grid: { display: false } },
+          y: { beginAtZero: true, grid: { color: '#2e2e38' } }
+        }
+      }
+    });
+  }
+
+  function renderDonutChart(answered, declined) {
+    if (donutChartInst) donutChartInst.destroy();
+    const ctx = document.getElementById('donutChart').getContext('2d');
+    donutChartInst = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Answered', 'Declined'],
+        datasets: [{
+          data: [answered, declined],
+          backgroundColor: ['#3ecf8e', '#f6c344'],
+          borderWidth: 0,
+          hoverOffset: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  function renderFaithChart(categories) {
+    if (faithChartInst) faithChartInst.destroy();
+    const ctx = document.getElementById('faithChart').getContext('2d');
+    faithChartInst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: categories.map(c => c.name),
+        datasets: [
+          {
+            label: 'Faithfulness',
+            data: categories.map(c => +(c.faithfulness * 100).toFixed(1)),
+            backgroundColor: categories.map(c => faithColor(c.faithfulness)),
+            borderRadius: 4,
+            borderSkipped: false,
+          },
+          {
+            label: 'Gate threshold',
+            data: categories.map(() => 85),
+            type: 'line',
+            borderColor: '#f6534a',
+            borderWidth: 1.5,
+            borderDash: [4, 4],
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.label + ': ' + ctx.raw + '%'
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            min: 0, max: 100,
+            ticks: { callback: v => v + '%' },
+            grid: { color: '#2e2e38' }
+          }
+        }
+      }
+    });
+  }
+
+  function renderCategoryTable(categories) {
+    const tbody = document.getElementById('categoryTable');
+    tbody.innerHTML = '';
+    categories.forEach(cat => {
+      const pct = (cat.faithfulness * 100).toFixed(1);
+      const passes = cat.faithfulness >= 0.85;
+      const confPct = (cat.avgConf * 100).toFixed(0);
+      const color = faithColor(cat.faithfulness);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--text); font-weight:500; text-transform:capitalize;">${cat.name}</td>
+        <td style="font-family:var(--mono);">${cat.queries}</td>
+        <td>
+          <div class="faith-bar-wrap">
+            <div class="faith-bar">
+              <div class="faith-fill" style="width:${pct}%; background:${color};"></div>
+            </div>
+            <span style="font-family:var(--mono); color:${color}; font-size:12px; min-width:38px;">${pct}%</span>
+          </div>
+        </td>
+        <td style="font-family:var(--mono); color:var(--purple);">${confPct}%</td>
+        <td class="${passes ? 'gate-pass' : 'gate-fail'}">${passes ? '✓ Pass' : '✗ Fail'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderRecentQueries(queries) {
+    const container = document.getElementById('recentQueries');
+    container.innerHTML = '';
+    queries.forEach(q => {
+      const confPct = (q.confidence * 100).toFixed(0);
+      const confClass = q.status === 'declined' ? 'conf-none' :
+                        q.confidence >= 0.90 ? 'conf-high' :
+                        q.confidence >= 0.75 ? 'conf-med' : 'conf-low';
+      const confText = q.status === 'declined' ? '—' : confPct + '%';
+      const statusClass = q.status === 'answered' ? 'type-answer' : 'type-decline';
+      const div = document.createElement('div');
+      div.className = 'query-row';
+      div.innerHTML = `
+        <span class="query-text" title="${q.query}">${q.query}</span>
+        <span style="font-family:var(--mono); color:var(--text2);">${q.latency}ms</span>
+        <span class="conf-pill ${confClass}">${confText}</span>
+        <span class="type-pill ${statusClass}">${q.status}</span>
+        <span style="font-family:var(--mono); color:var(--text3);">${q.citations}</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  loadMetrics();
+</script>
+</body>
+</html>
