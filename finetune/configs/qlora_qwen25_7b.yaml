@@ -1,0 +1,84 @@
+# finetune/configs/qlora_qwen25_7b.yaml
+# =======================================
+# QLoRA fine-tuning configuration for Qwen-2.5-7B-Instruct
+# Target task: parsing Meesho support logs → structured ticket JSON
+#
+# Hardware requirements:
+#   Minimum: 1x GPU with 16GB VRAM (RTX 3090, RTX 4080, A10G)
+#   Recommended: 1x A100 40GB (RunPod ~$1.50/hr, Lambda Labs ~$1.10/hr)
+#   Training time: ~45 min on A100 for 500 examples x 3 epochs
+#
+# To run:
+#   python finetune/scripts/train_qlora.py --config finetune/configs/qlora_qwen25_7b.yaml
+
+# ── Base model ───────────────────────────────────────────────────────────────
+model_name: "Qwen/Qwen2.5-7B-Instruct"
+model_revision: "main"
+trust_remote_code: true
+torch_dtype: "bfloat16"       # bfloat16 for A100/H100, float16 for older GPUs
+
+# ── Dataset ──────────────────────────────────────────────────────────────────
+train_dataset: "finetune/data/train_sft_pairs.jsonl"
+eval_dataset:  "finetune/data/eval_sft_pairs.jsonl"
+dataset_text_field: "messages"   # ChatML format field name
+
+# ── QLoRA config ─────────────────────────────────────────────────────────────
+lora_r: 16                    # LoRA rank — higher = more capacity, more memory
+lora_alpha: 32                # Scaling factor (typically 2x rank)
+lora_dropout: 0.05
+lora_bias: "none"
+
+# Target modules for Qwen-2.5 attention layers
+lora_target_modules:
+  - "q_proj"
+  - "k_proj"
+  - "v_proj"
+  - "o_proj"
+  - "gate_proj"
+  - "up_proj"
+  - "down_proj"
+
+# ── 4-bit quantization (bitsandbytes) ────────────────────────────────────────
+load_in_4bit: true
+bnb_4bit_quant_type: "nf4"          # Normal Float 4 — best for LLM weights
+bnb_4bit_compute_dtype: "bfloat16"
+bnb_4bit_use_double_quant: true     # Nested quantization saves ~0.4GB VRAM
+
+# ── Training hyperparameters ─────────────────────────────────────────────────
+output_dir: "finetune/checkpoints/qwen25_7b_meesho"
+num_train_epochs: 3
+per_device_train_batch_size: 4
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 4     # Effective batch = 4 * 4 = 16
+gradient_checkpointing: true        # Saves VRAM at cost of ~20% speed
+
+learning_rate: 2.0e-4
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.05
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+# ── Sequence length ───────────────────────────────────────────────────────────
+max_seq_length: 1024             # Support logs + JSON output fit well in 1024
+packing: false                   # Don't pack multiple examples — JSON output needs clean boundaries
+
+# ── Evaluation and saving ─────────────────────────────────────────────────────
+evaluation_strategy: "steps"
+eval_steps: 50
+save_strategy: "steps"
+save_steps: 50
+save_total_limit: 3              # Keep only last 3 checkpoints
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging_steps: 10
+logging_dir: "finetune/logs"
+report_to: "none"                # Set to "wandb" if you have W&B configured
+
+# ── Optimizer ─────────────────────────────────────────────────────────────────
+optim: "paged_adamw_32bit"       # Memory-efficient optimizer for QLoRA
+
+# ── Tokenizer ─────────────────────────────────────────────────────────────────
+padding_side: "right"
+pad_token: "<|endoftext|>"
